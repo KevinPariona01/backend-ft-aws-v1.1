@@ -195,6 +195,7 @@ const getRepetidoCodigoXGrupo = async (request, response)=> {
         if(respuesta.status){
             response.status(200).json({ msg: 'Conexión exitosa', body: respuesta.body, status:true});
         }else{
+            console.log("ERROR => " + respuesta.error);
             response.status(200).json({ msg: respuesta.error , body:null, status:false });
         }
 }
@@ -202,6 +203,17 @@ const getRepetidoCodigoXGrupo = async (request, response)=> {
 const getPedidoProducto = async (request, response)=> {
 
     let respuesta = await productRepository.getPedidoProducto(request);
+
+        if(respuesta.status){
+            response.status(200).json({ msg: 'Conexión exitosa', body: respuesta.body, status:true});
+        }else{
+            response.status(200).json({ msg: respuesta.error , body:null, status:false });
+        }
+}
+
+const saveStockTmp = async (request, response)=> {
+
+    let respuesta = await productRepository.saveStockTmp(request);
 
         if(respuesta.status){
             response.status(200).json({ msg: 'Conexión exitosa', body: respuesta.body, status:true});
@@ -229,5 +241,6 @@ module.exports = {
     getProductoLike,
     getProductoSegunMedidaYDistribucion,
     getRepetidoCodigoXGrupo,
-    getPedidoProducto
+    getPedidoProducto,
+    saveStockTmp
 }

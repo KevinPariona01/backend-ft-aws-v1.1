@@ -22,6 +22,7 @@ router.post('/getProductoLike', productoControllers.getProductoLike );
 router.post('/getProductoSegunMedidaYDistribucion', productoControllers.getProductoSegunMedidaYDistribucion ); 
 router.post('/getRepetidoCodigoXGrupo', productoControllers.getRepetidoCodigoXGrupo ); 
 router.post('/getPedidoProducto', productoControllers.getPedidoProducto ); 
+router.post('/saveStockTmp', productoControllers.saveStockTmp ); 
 
 
 module.exports = router;

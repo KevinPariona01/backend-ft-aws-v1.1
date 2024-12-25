@@ -332,7 +332,7 @@ const updateProducto = async (request)=> {
     let n_id_tipo_medida = request.body.n_id_tipo_medida;
     let n_id_grupo = request.body.n_id_grupo;
     let n_id_proveedor = request.body.n_id_proveedor;
-    let c_codigo_producto = request.body.c_codigo_producto;
+    let c_codigo_producto = request.body.c_codigo_producto == null ? '' : request.body.c_codigo_producto;
     let c_nombre_producto = request.body.c_nombre_producto;
     let c_detalle_primario_producto = request.body.c_detalle_primario_producto;
     let c_descripcion_producto = request.body.c_descripcion_producto;
@@ -693,7 +693,6 @@ const getDetalleProducto = async (request)=> {
     //QUERYS
     let n_id_producto = request.body.n_id_producto;
     let n_id_producto_asociado = request.body.n_id_producto_asociado;
-    console.log("n_id_producto_asociado => ", n_id_producto_asociado);
     let query1 = `SELECT 
             dtm.n_id_distribucion_tipo_medida,
             pdp.n_id_grupo,
@@ -1015,6 +1014,44 @@ const getPedidoProducto = async (request)=> {
 
 }
 
+const saveStockTmp = async (request)=> {
+    //QUERYS
+    let n_id_producto = request.body.n_id_producto;
+    let n_stock1 = request.body.n_stock1;
+    let n_stock2 = request.body.n_stock2;
+    let n_stock3 = request.body.n_stock3;
+
+    let query1 = `UPDATE producto SET n_stock1 = '${n_stock1}', n_stock2 = '${n_stock2}', n_stock3 = '${n_stock3}' WHERE n_id_producto = ${n_id_producto}`;
+
+    //OBJECT RESPONSE
+    let objectResponse = {
+        body:null,
+        status:null,
+        error: null
+    };
+    let body = {
+        response1:null,
+    };
+    try{
+        let response1 = await dbAll(query1);
+
+        body.response1 = response1;
+
+        objectResponse.body = body;
+        objectResponse.status = true;
+        
+        return objectResponse;
+
+    }catch(error){
+
+        objectResponse.error =  error.toString();
+        objectResponse.status = false;
+        
+        return objectResponse;
+    }
+
+}
+
 
 
 
@@ -1037,5 +1074,6 @@ module.exports = {
     getProductoLike,
     getProductoSegunMedidaYDistribucion,
     getRepetidoCodigoXGrupo,
-    getPedidoProducto
+    getPedidoProducto,
+    saveStockTmp
 }
