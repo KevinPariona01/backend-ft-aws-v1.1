@@ -222,6 +222,28 @@ const saveStockTmp = async (request, response)=> {
         }
 }
 
+const getProductByTipoMedidaDistribucion = async (request, response)=> {
+
+    let respuesta = await productRepository.getProductByTipoMedidaDistribucion(request);
+
+        if(respuesta.status){
+            response.status(200).json({ msg: 'Conexión exitosa', body: respuesta.body, status:true});
+        }else{
+            response.status(200).json({ msg: respuesta.error , body:null, status:false });
+        }
+}
+
+const updatePorcentajeDistribucionProductoEstaticoOrPorcentaje = async (request, response)=> {
+
+    let respuesta = await productRepository.updatePorcentajeDistribucionProductoEstaticoOrPorcentaje(request);
+
+        if(respuesta.status){
+            response.status(200).json({ msg: 'Conexión exitosa', body: respuesta.body, status:true});
+        }else{
+            response.status(200).json({ msg: respuesta.error , body:null, status:false });
+        }
+}
+
 module.exports = {
     getProducto,
     getProductoXNombre,
@@ -242,5 +264,7 @@ module.exports = {
     getProductoSegunMedidaYDistribucion,
     getRepetidoCodigoXGrupo,
     getPedidoProducto,
-    saveStockTmp
+    saveStockTmp,
+    getProductByTipoMedidaDistribucion,
+    updatePorcentajeDistribucionProductoEstaticoOrPorcentaje
 }

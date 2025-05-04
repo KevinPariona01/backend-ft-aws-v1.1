@@ -23,6 +23,8 @@ router.post('/getProductoSegunMedidaYDistribucion', productoControllers.getProdu
 router.post('/getRepetidoCodigoXGrupo', productoControllers.getRepetidoCodigoXGrupo ); 
 router.post('/getPedidoProducto', productoControllers.getPedidoProducto ); 
 router.post('/saveStockTmp', productoControllers.saveStockTmp ); 
+router.post('/getProductByTipoMedidaDistribucion', productoControllers.getProductByTipoMedidaDistribucion ); 
+router.post('/updatePorcentajeDistribucionProductoEstaticoOrPorcentaje', productoControllers.updatePorcentajeDistribucionProductoEstaticoOrPorcentaje ); 
 
 
 module.exports = router;

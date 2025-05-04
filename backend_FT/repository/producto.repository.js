@@ -1052,6 +1052,205 @@ const saveStockTmp = async (request)=> {
 
 }
 
+const getProductByTipoMedidaDistribucion = async (request)=> {
+    //QUERYS
+    let n_id_grupo = request.body.n_id_grupo;
+    let n_id_tipo_medida = request.body.n_id_tipo_medida;
+
+    let query1 = `SELECT
+            dt.n_id_distribucion_tipo_medida, 
+            dt.c_nombre_distribucion_tipo_medida
+        FROM tipo_medida t
+        INNER JOIN distribucion_tipo_medida dt ON dt.n_id_tipo_medida = t.n_id_tipo_medida
+        WHERE dt.n_id_tipo_medida  = ${n_id_tipo_medida}
+        ORDER BY dt.n_orden ASC`;
+
+    let query2 = `SELECT  
+            p.n_id_producto,
+            p.c_nombre_producto,
+            p.c_detalle_primario_producto,
+            p.f_precio_producto,
+            p.b_igv_producto,
+            p.b_dolar_producto,
+            dt.c_nombre_distribucion_tipo_medida,
+            dt.f_distribucion_tipo_medida,
+            pdp.f_valor_porcentaje,
+            pdp.f_precio_estatico
+        FROM 
+            producto p
+        INNER JOIN tipo_medida t ON t.n_id_tipo_medida = p.n_id_tipo_medida
+        INNER JOIN distribucion_tipo_medida dt ON dt.n_id_tipo_medida = t.n_id_tipo_medida
+        INNER JOIN porcentaje_distribucion_producto pdp ON pdp.n_id_distribucion_tipo_medida = dt.n_id_distribucion_tipo_medida AND pdp.n_id_producto = p.n_id_producto AND pdp.n_id_grupo = p.n_id_grupo
+        WHERE
+        p.n_activo = 1
+        AND
+        p.n_id_tipo_medida = ${n_id_tipo_medida}
+        AND
+        p.n_id_grupo = ${n_id_grupo}
+        ORDER BY p.n_id_producto, dt.n_orden ASC`;
+
+    let query3 = `SELECT c_valor_constante FROM constantes WHERE c_valor_id_constante = 'TX_ID_DOLAR' and b_estado = 1`;
+    let query4 = `SELECT c_valor_constante FROM constantes WHERE c_valor_id_constante = 'TX_ID_IGV' and b_estado = 1`;
+
+    //OBJECT RESPONSE
+    let objectResponse = {
+        body:null,
+        status:null,
+        error: null
+    };
+    let body = {
+        response1:null,
+        response2:null,
+    };
+    try{
+        let response1 = await dbAll(query1);
+        let response2 = await dbAll(query2);
+        let response3 = await dbAll(query3);
+        let response4 = await dbAll(query4);
+
+        
+
+        //LOGICA
+        let dolar = parseFloat(response3[0].c_valor_constante);
+        let igv = parseFloat(response4[0].c_valor_constante);
+
+        // Extraer nombres de distribuciones ordenados
+        let distribuciones = response1.map(row => ({
+            nombre: row.c_nombre_distribucion_tipo_medida,
+            valor: row.n_id_distribucion_tipo_medida
+        }));
+        
+        // Construir cabecera con orden correcto
+        let header = [{'nombre':'NOMBRE - DETALLE', 'valor': 0}];
+        distribuciones.forEach(d => {
+            header.push({'nombre':d.nombre + ' PORCENTAJE', 'valor':d.valor});                 // f_valor_porcentaje
+            header.push({'nombre':d.nombre + ' ESTATICO', 'valor':d.valor});   // f_precio_estatico
+            header.push({'nombre':d.nombre + ' PRECIO', 'valor':d.valor});     // Nueva columna con el precio calculado
+        });
+    
+        // Agrupar productos en un Map
+        let productosMap = new Map();
+    
+        response2.forEach(row => {
+            let key = row.n_id_producto;
+            if (!productosMap.has(key)) {
+                let precioProducto = row.f_precio_producto;
+    
+                // Conversión a dólares
+                if (row.b_dolar_producto) {
+                    precioProducto *= dolar;
+                }
+    
+                // Aplicar IGV si no tiene
+                if (!row.b_igv_producto) {
+                    precioProducto = precioProducto + precioProducto * igv;
+                }
+    
+                productosMap.set(key, {
+                    n_id_producto: row.n_id_producto,
+                    c_nombre_producto: row.c_nombre_producto + ' - ' + row.c_detalle_primario_producto,
+                    precioBase: precioProducto,
+                    valores: {}
+                });
+            }
+    
+            let producto = productosMap.get(key);
+            let f_distribucion_tipo_medida = row.f_distribucion_tipo_medida;
+            let f_valor_porcentaje = row.f_valor_porcentaje;
+    
+            // Asignar valores
+            producto.valores[row.c_nombre_distribucion_tipo_medida + ' PORCENTAJE'] = row.f_valor_porcentaje;
+            producto.valores[row.c_nombre_distribucion_tipo_medida + ' ESTATICO'] = row.f_precio_estatico;
+    
+            // Calcular nuevo precio según la lógica del front
+            let f_valor_venta = Math.ceil((producto.precioBase * f_distribucion_tipo_medida +
+                producto.precioBase * f_distribucion_tipo_medida * f_valor_porcentaje) * 10) / 10;
+    
+            producto.valores[row.c_nombre_distribucion_tipo_medida + ' PRECIO'] = parseFloat(f_valor_venta.toFixed(2));
+        });
+    
+        // Convertir a estructura de filas con el orden correcto
+        let rows = Array.from(productosMap.values()).map(producto => {
+            let row = [
+                producto.n_id_producto,
+                producto.c_nombre_producto
+            ];
+    
+            // Insertar valores en el orden de las distribuciones
+            distribuciones.forEach(d => {
+                row.push(producto.valores[d.nombre + ' PORCENTAJE'] || '');                // f_valor_porcentaje
+                row.push(producto.valores[d.nombre + ' ESTATICO'] || '');  // f_precio_estatico
+                row.push(producto.valores[d.nombre + ' PRECIO'] || '');    // f_valor_venta calculado
+            });
+    
+            return row;
+        });
+
+        body.response1 = header;
+        body.response2 = rows;
+
+        objectResponse.body = body;
+        objectResponse.status = true;
+        
+        return objectResponse;
+
+    }catch(error){
+
+        objectResponse.error =  error.toString();
+        objectResponse.status = false;
+        
+        return objectResponse;
+    }
+
+}
+
+const updatePorcentajeDistribucionProductoEstaticoOrPorcentaje = async (request)=> {
+    //QUERYS
+    //console.log("entro, " , request.body);
+    let n_id_distribucion_tipo_medida = request.body.n_id_distribucion_tipo_medida;
+    let n_id_producto = request.body.n_id_producto;
+    let n_id_grupo = request.body.n_id_grupo;
+    let f_valor = request.body.f_valor;
+    let c_tipo = request.body.c_tipo;
+
+    let query1 = '';
+    if(c_tipo == 'ESTATICO'){
+        query1 = `UPDATE porcentaje_distribucion_producto SET f_precio_estatico = ${f_valor}
+        WHERE n_id_distribucion_tipo_medida = ${n_id_distribucion_tipo_medida} AND n_id_producto = ${n_id_producto} AND n_id_grupo =  ${n_id_grupo}`;
+    }else{
+        query1 = `UPDATE porcentaje_distribucion_producto SET f_valor_porcentaje = ${f_valor}
+        WHERE n_id_distribucion_tipo_medida = ${n_id_distribucion_tipo_medida} AND n_id_producto = ${n_id_producto} AND n_id_grupo =  ${n_id_grupo}`;
+    }
+    
+    
+    //OBJECT RESPONSE
+    let objectResponse = {
+        body:null,
+        status:null,
+        error: null
+    };
+    let body = {
+        response1:null,
+    };
+    try{
+        let response1 = await dbAll(query1);
+
+        body.response1 = response1;
+
+        objectResponse.body = body;
+        objectResponse.status = true;
+        
+        return objectResponse;
+
+    }catch(error){
+
+        objectResponse.error =  error.toString();
+        objectResponse.status = false;
+        
+        return objectResponse;
+    }
+}
+
 
 
 
@@ -1075,5 +1274,7 @@ module.exports = {
     getProductoSegunMedidaYDistribucion,
     getRepetidoCodigoXGrupo,
     getPedidoProducto,
-    saveStockTmp
+    saveStockTmp,
+    getProductByTipoMedidaDistribucion,
+    updatePorcentajeDistribucionProductoEstaticoOrPorcentaje
 }
